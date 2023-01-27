@@ -1,5 +1,5 @@
-import React, { FC, useContext } from 'react'
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native'
+import React, { FC, useContext, useState, useEffect, useRef } from 'react'
+import { View, TouchableOpacity, Text, StyleSheet, Image, Animated } from 'react-native'
 import { NativeStackScreenProps } from "@react-navigation/native-stack"
 
 import * as WebBrowser from 'expo-web-browser';
@@ -11,13 +11,20 @@ import { RootStack } from "../../routes"
 import { userContext } from "../../context/UserContext"
 import { singUp } from "../../firebase/db/singUp"
 
+import Icon from "react-native-vector-icons/FontAwesome"
+
 // @ts-ignore
 import { WEB_CLIENT_ID } from "@env"
+
+const HdpIcons = require('../../../assets/hdp-icon-white.png')
 
 WebBrowser.maybeCompleteAuthSession();
 
 export const Login: FC<NativeStackScreenProps<RootStack, "Login">> = ({ navigation }) => {
-  const { user, setUser } = useContext(userContext)
+  const { setUser } = useContext(userContext)
+  const [isLoading, setIsLoading] = useState(false)
+  const yAnimation = useRef(new Animated.Value(-250)).current
+  const fadeAnimation = useRef(new Animated.Value(0)).current
 
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest(
     {
@@ -26,15 +33,16 @@ export const Login: FC<NativeStackScreenProps<RootStack, "Login">> = ({ navigati
   );
 
 
-  React.useEffect(() => {
+  useEffect(() => {
     if(response) {
       if (response.type === 'success') {
         const { id_token } = response.params;
         const auth = getAuth(app);
         const credential = GoogleAuthProvider.credential(id_token);
+        setIsLoading(true)
         signInWithCredential(auth, credential)
-          .then(({ user }) => {
-            singUp(user)
+          .then(async ({ user }) => {
+            await singUp(user)
               .then(user => {
                 user 
                 && 
@@ -44,6 +52,7 @@ export const Login: FC<NativeStackScreenProps<RootStack, "Login">> = ({ navigati
               .catch(err => console.log('error: ', err))
           })
           .catch(err => console.error("Erro na credential: ", err))
+          .finally(() => setIsLoading(false))
       } else {
         //TODO handle error
         console.log('should handle error')
@@ -51,11 +60,40 @@ export const Login: FC<NativeStackScreenProps<RootStack, "Login">> = ({ navigati
     }
   }, [response]);
 
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(yAnimation, {
+        toValue: 0,
+        useNativeDriver: true,
+        stiffness: 30,
+        mass: 3
+      }),
+      Animated.timing(fadeAnimation, {
+        toValue: 1,
+        useNativeDriver: true,
+        duration: 1
+      })
+    ]).start()
+  }, [])
 
   return (
     <View style={LoginStyle.wrapper} >
-      <TouchableOpacity style={LoginStyle.loginButton}  accessibilityLabel="Login Google" onPress={() => promptAsync()} >
-        <Text style={{ color: "#000" }} > Login </Text>
+      <Animated.Image 
+        accessibilityHint='app logo'
+        source={HdpIcons}
+        style={{
+          marginTop: 40,
+          height: 300,
+          width: 500,
+          opacity: fadeAnimation,
+          transform: [{
+            translateY: yAnimation
+          }],
+        }}
+      />
+      <TouchableOpacity style={LoginStyle.loginButton} disabled={isLoading} accessibilityLabel="Login Google" onPress={() => promptAsync()} >
+        <Icon name='google' size={24} />
+        <Text style={LoginStyle.loginText} > Login Google </Text>
       </TouchableOpacity>
     </View>
   )
@@ -66,7 +104,7 @@ const LoginStyle = StyleSheet.create({
     flex: 1,
     backgroundColor: "#000",
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "space-evenly"
   },
   loginButton: {
     backgroundColor: "#fff",
@@ -74,6 +112,13 @@ const LoginStyle = StyleSheet.create({
     padding: 15,
     width: 200,
     alignContent: "space-around",
-    alignItems: "center"
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-evenly"
+  },
+  loginText: {
+    color: "#000",
+    fontSize: 18,
+    fontWeight: 'bold'
   }
 })
