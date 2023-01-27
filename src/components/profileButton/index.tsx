@@ -1,7 +1,9 @@
-import React, { FC } from "react";
+import React, { FC, useContext } from "react";
 import { TouchableOpacity, View, Image, StyleSheet } from 'react-native'
 
 const icon = require("../../../assets/icon.png")
+
+import { userContext } from "../../context/UserContext"
 
 const profileStyle = StyleSheet.create({
   IconWrapper: {
@@ -18,10 +20,17 @@ const profileStyle = StyleSheet.create({
 
 export const ProfileButton: FC = () => {
 
+  const { user } = useContext(userContext)
+
   return (
     <TouchableOpacity activeOpacity={0.9} >
       <View style={profileStyle.IconWrapper} > 
-        <Image style={profileStyle.icon} source={icon} />
+        <Image 
+          style={profileStyle.icon} 
+          source={ user ? {
+            uri: user.photoURL
+          } : icon} 
+          />
       </View>
     </TouchableOpacity>
   )
